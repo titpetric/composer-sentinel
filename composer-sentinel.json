@@ -1,0 +1,18 @@
+{
+  "sources": [
+    {
+      "name": "monotek_minitpl",
+      "type": "git",
+      "source": "ssh://git@github.com/titpetric/minitpl.git"
+    },
+    {
+      "name": "test_psr0",
+      "type": "git",
+      "source": "/root/gittest/test1"
+    }
+  ],
+  "archive": {
+    "directory": "dist",
+    "url": "http://packages.mtk.lan/composer"
+  }
+}

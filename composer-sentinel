@@ -1,0 +1,185 @@
+#!/usr/bin/env php
+<?php
+
+class ComposerSentinel
+{
+	var $sources;
+
+	function __construct()
+	{
+		$config = __FILE__.".json";
+		$this->sources = json_decode(@file_get_contents($config));
+		if (!$this->sources) {
+			throw new Exception("Can't load config: ".$config);
+		}
+	}
+
+	function json_encode_pretty($json_obj)
+	{
+		$tab = "  ";
+		$new_json = "";
+		$indent_level = 0;
+		$in_string = false;
+		$json = json_encode($json_obj);
+		$len = strlen($json);
+		for ($c = 0; $c < $len; $c++) {
+			$char = $json[$c];
+			switch($char) {
+				case '{':
+				case '[':
+					if (!$in_string) {
+						$new_json .= $char . "\n" . str_repeat($tab, $indent_level+1);
+						$indent_level++;
+					} else {
+						$new_json .= $char;
+					}
+					break;
+				case '}':
+				case ']':
+					if (!$in_string) {
+						$indent_level--;
+						$new_json .= "\n" . str_repeat($tab, $indent_level) . $char;
+					} else {
+						$new_json .= $char;
+					}
+					break;
+				case ',':
+					if (!$in_string) {
+						$new_json .= ",\n" . str_repeat($tab, $indent_level);
+					} else {
+						$new_json .= $char;
+					}
+					break;
+				case ':':
+					if (!$in_string) {
+						$new_json .= ": ";
+					} else {
+						$new_json .= $char;
+					}
+					break;
+				case '"':
+					if ($c > 0 && $json[$c-1] != '\\')
+					{
+						$in_string = !$in_string;
+					}
+				default:
+					$new_json .= $char;
+					break;
+			}
+		}
+		$new_json = str_replace("\\/", "/", $new_json);
+		return $new_json;
+	}
+
+	var $commands = array();
+
+	function addCommand($command, $description)
+	{
+		$this->commands[$command] = $description;
+	}
+
+	function PrintUsage()
+	{
+		echo "Usage: ./composer-sentinel [command]\n\n";
+		ksort($this->commands);
+		echo "Commands:\n";
+		foreach ($this->commands as $command => $description) {
+			echo "\t".$command.": ".$description."\n";
+		}
+		echo "\n";
+		echo "Packages:\n";
+		foreach ($this->sources->sources as $source) {
+			echo "\t".$source->name.": ".$source->type." [".$source->source."]\n";
+		}
+	}
+
+	function Pull()
+	{
+		foreach ($this->sources->sources as $source) {
+			if ($source->type == "git") {
+				echo "Pulling sources from ".$source->name." (".$source->source.")\n";
+				if (!is_dir($source->name)) {
+					passthru("git clone ".$source->source." ".$source->name);
+				} else {
+					chdir($source->name);
+					passthru("git pull");
+					chdir("..");
+				}
+			}
+		}
+	}
+
+	function Build()
+	{
+		passthru("rm -rf build/");
+		@mkdir("build/");
+		@mkdir("build/".$this->sources->archive->directory);
+
+		$packages = array();
+		foreach ($this->sources->sources as $source) {
+			$composer_config = $source->name."/composer.json";
+			if (!file_exists($composer_config)) {
+				throw new Exception("File ".$composer_config." can't be found.");
+			}
+			$composer = json_decode(file_get_contents($composer_config));
+			if (!$composer) {
+				throw new Exception("File ".$composer_config." can't be parsed, error ".json_last_error());
+			}
+
+			$options = array("name", "description", "keywords", "authors", "license", "type", "require", "autoload");
+
+			$package = (array)$composer;
+			$package['time'] = date("Y-m-d H:i:s");
+			$package['version'] = $this->generateVersion($package['version']);
+			echo "Building package ".$source->name." (".$package['version'].")\n";
+			$package['dist'] = $this->BuildPackage($source->name, $package['version']);
+			$packages[$package['name']] = (object)array($package['version'] => (object)$package);
+		}
+		echo "Writing out config\n";
+		file_put_contents("build/packages.json", $this->json_encode_pretty((object)(array("packages" => $packages))));
+		echo "Done.\n";
+	}
+
+	function BuildPackage($source, $version)
+	{
+		chdir($source);
+		$destination = "build/".$this->sources->archive->directory."/".$source."-".$version.".tar";
+		passthru("tar -cf ../".$destination." ./");
+		chdir("..");
+		return (object)array("type" => "tar", "url" => rtrim($this->sources->archive->url, '/') . '/' . $this->sources->archive->directory . '/' . basename($destination), "shasum" => sha1_file($destination), "reference" => $version);
+	}
+
+	function GenerateVersion($version)
+	{
+		if (!isset($version)) {
+			$version = "1.0";
+		}
+		return $version.".".date("ymd.Hi");
+	}
+}
+
+try {
+	$sentinel = new ComposerSentinel;
+	$sentinel->addCommand("pull", "Pull the package sources from their repositories/locations.");
+	$sentinel->addCommand("build", "Build the package repository.");
+
+	if (!isset($argv[1])) {
+		$sentinel->PrintUsage();
+		die;
+	}
+
+	switch ($argv[1]) {
+		case "pull":
+			$sentinel->Pull();
+			break;
+		case "build":
+			$sentinel->Build();
+			break;
+		default:
+			$sentinel->PrintUsage();
+			break;
+	}
+} catch (Exception $e) {
+	echo "Exception: ".$e->getMessage()."\n";
+	die;
+}
