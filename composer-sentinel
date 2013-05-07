@@ -144,7 +144,7 @@ class ComposerSentinel
 	{
 		chdir($source);
 		$destination = "build/".$this->sources->archive->directory."/".$source."-".$version.".tar";
-		passthru("tar -cf ../".$destination." ./");
+		passthru("tar -cf ../".$destination." --exclude .git --exclude .gitignore --exclude .gitmodules ./");
 		chdir("..");
 		return (object)array("type" => "tar", "url" => rtrim($this->sources->archive->url, '/') . '/' . $this->sources->archive->directory . '/' . basename($destination), "shasum" => sha1_file($destination), "reference" => $version);
 	}
