@@ -12,6 +12,8 @@
     }
   ],
   "archive": {
+    "source": "package-sources/",
+    "target": "package-build/",
     "directory": "dist",
     "url": "http://packages.mtk.lan/composer"
   }
