@@ -98,7 +98,11 @@ class ComposerSentinel
 			echo "Building package ".$source->name." (".$package['version'].")\n";
 			$package['dist'] = $this->BuildPackage($source->name, $package['version'], $sourceLocation, $fileLocation, $cwd);
 
-			$packages[$package['name']] = (object)array($package['version'] => (object)$package);
+			$dev = $package;
+			$dev['version'] = 'dev-master';
+			$dev['version_normalized'] = "9999999-dev";
+
+			$packages[$package['name']] = (object)array($package['version'] => (object)$package, "dev-master" => $dev);
 		}
 		echo "Writing out config\n";
 		file_put_contents($targetLocation . "packages.json", $this->json_encode_pretty((object)(compact("packages"))));
