@@ -74,7 +74,8 @@ class ComposerSentinel
 		} else {
 			// clear previous build packages
 			@unlink($targetLocation . "packages.json");
-			array_map("unlink", glob($fileLocation."*.tar"));
+			array_map("unlink", glob($fileLocation . "*.tar"));
+			array_map("unlink", glob($fileLocation . "*.zip"));
 		}
 
 		$packages = array();
@@ -106,13 +107,25 @@ class ComposerSentinel
 		}
 		echo "Writing out config\n";
 		file_put_contents($targetLocation . "packages.json", $this->json_encode_pretty((object)(compact("packages"))));
-		array_map("unlink", glob($sourceLocation."*.tar"));
+		array_map("unlink", glob($sourceLocation . "*.tar"));
+		array_map("unlink", glob($sourceLocation . "*.zip"));
 		echo "Done.\n";
 	}
 
 	public function BuildPackage($source, $reference, $sourceLocation, $targetLocation, $cwd)
 	{
 		$filename = $source . "-" . $reference . ".tar";
+		$filename_zip = str_replace(".tar", ".zip", $filename);
+
+		passthru("rm -rf .temp/");
+		mkdir(".temp");
+		passthru("rsync -a " . $sourceLocation . $source . "/ .temp/");
+		passthru("find .temp/ -name '.git' | xargs --no-run-if-empty rm -rf");
+		passthru("find .temp/ -name '.gitignore' -delete");
+		passthru("find .temp/ -name '.gitmodules' -delete");
+		passthru("cd .temp && zip -qr ../" . basename($filename_zip) . " ./ && cd .. && rm -rf .temp/");
+		rename(basename($filename_zip), $targetLocation . $filename_zip);
+
 		chdir($sourceLocation . $source);
 		passthru("tar -cf ../" . $filename . " --exclude .git --exclude .gitignore --exclude .gitmodules --exclude git_hooks ./");
 		chdir($cwd);
