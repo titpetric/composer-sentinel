@@ -114,8 +114,9 @@ class ComposerSentinel
 
 	public function BuildPackage($source, $reference, $sourceLocation, $targetLocation, $cwd)
 	{
-		$filename = $source . "-" . $reference . ".tar";
-		$filename_zip = str_replace(".tar", ".zip", $filename);
+		$filename = array();
+		$filename["tar"] = $source . "-" . $reference . ".tar";
+		$filename["zip"] = str_replace(".tar", ".zip", $filename['tar']);
 
 		passthru("rm -rf .temp/");
 		mkdir(".temp");
@@ -123,16 +124,17 @@ class ComposerSentinel
 		passthru("find .temp/ -name '.git' | xargs --no-run-if-empty rm -rf");
 		passthru("find .temp/ -name '.gitignore' -delete");
 		passthru("find .temp/ -name '.gitmodules' -delete");
-		passthru("cd .temp && zip -qr ../" . basename($filename_zip) . " ./ && cd .. && rm -rf .temp/");
-		rename(basename($filename_zip), $targetLocation . $filename_zip);
+		passthru("cd .temp && zip -qr ../" . basename($filename['zip']) . " ./ && cd .. && rm -rf .temp/");
+		rename(basename($filename['zip']), $targetLocation . $filename['zip']);
 
 		chdir($sourceLocation . $source);
-		passthru("tar -cf ../" . $filename . " --exclude .git --exclude .gitignore --exclude .gitmodules --exclude git_hooks ./");
+		passthru("tar -cf ../" . $filename['tar'] . " --exclude .git --exclude .gitignore --exclude .gitmodules --exclude git_hooks ./");
 		chdir($cwd);
-		rename($sourceLocation . $filename, $targetLocation . $filename);
-		$type = "tar";
-		$url = rtrim($this->sources->archive->url, "/") . "/" . rtrim($this->sources->archive->directory, "/") . "/" . $filename;
-		$shasum = sha1_file($targetLocation . $filename);
+		rename($sourceLocation . $filename['tar'], $targetLocation . $filename['tar']);
+
+		$type = isset($this->sources->archive->format) ? $this->sources->archive->format : "tar";
+		$url = rtrim($this->sources->archive->url, "/") . "/" . rtrim($this->sources->archive->directory, "/") . "/" . $filename[$type];
+		$shasum = sha1_file($targetLocation . $filename[$type]);
 		return (object)compact("type", "url", "shasum", "reference");
 	}
 
