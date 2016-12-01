@@ -94,7 +94,7 @@ class ComposerSentinel
 
 			$package = (array)$composer;
 			$package['time'] = date("Y-m-d H:i:s");
-			$package['version'] = $this->generateVersion($package['version']);
+			$package['version'] = $this->generateVersion($package);
 
 			echo "Building package ".$source->name." (".$package['version'].")\n";
 			$package['dist'] = $this->BuildPackage($source->name, $package['version'], $sourceLocation, $fileLocation, $cwd);
@@ -138,12 +138,13 @@ class ComposerSentinel
 		return (object)compact("type", "url", "shasum", "reference");
 	}
 
-	public function GenerateVersion($version)
+	public function GenerateVersion($package)
 	{
-		if (!isset($version)) {
-			$version = "1.0";
+		$version = "1.0";
+		if (isset($package['version'])) {
+			$version = $package['version'];
 		}
-		return $version.".".date("ymd.Hi");
+		return $version . "." . date("ymd.Hi");
 	}
 
 	private function json_encode_pretty($json_obj)
