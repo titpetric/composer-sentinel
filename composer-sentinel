@@ -93,15 +93,17 @@ class ComposerSentinel
 			$options = array("name", "description", "keywords", "authors", "license", "type", "require", "autoload");
 
 			$package = (array)$composer;
+			unset($package['repositories']);
 			$package['time'] = date("Y-m-d H:i:s");
 			$package['version'] = $this->generateVersion($package);
 
 			echo "Building package ".$source->name." (".$package['version'].")\n";
-			$package['dist'] = $this->BuildPackage($source->name, $package['version'], $sourceLocation, $fileLocation, $cwd);
+			$package['dist'] = $this->BuildPackage($source->name, $package['version'], $package['version'], $sourceLocation, $fileLocation, $cwd);
 
 			$dev = $package;
 			$dev['version'] = 'dev-master';
 			$dev['version_normalized'] = "9999999-dev";
+			$dev['dist'] = $this->BuildPackage($source->name, $dev['version'], $dev['version_normalized'], $sourceLocation, $fileLocation, $cwd);
 
 			$packages[$package['name']] = (object)array($package['version'] => (object)$package, "dev-master" => $dev);
 		}
@@ -112,10 +114,10 @@ class ComposerSentinel
 		echo "Done.\n";
 	}
 
-	public function BuildPackage($source, $reference, $sourceLocation, $targetLocation, $cwd)
+	public function BuildPackage($source, $version, $version_normalized, $sourceLocation, $targetLocation, $cwd)
 	{
 		$filename = array();
-		$filename["tar"] = $source . "-" . $reference . ".tar";
+		$filename["tar"] = $source . "-" . $version . ".tar";
 		$filename["zip"] = str_replace(".tar", ".zip", $filename['tar']);
 
 		passthru("rm -rf .temp/");
@@ -124,6 +126,12 @@ class ComposerSentinel
 		passthru("find .temp/ -name '.git' | xargs --no-run-if-empty rm -rf");
 		passthru("find .temp/ -name '.gitignore' -delete");
 		passthru("find .temp/ -name '.gitmodules' -delete");
+
+		$config = json_decode(file_get_contents(".temp/composer.json"), true);
+		$config['version'] = $version;
+		$config['version_normalized'] = $version_normalized;
+		file_put_contents(".temp/composer.json", json_encode($config, JSON_PRETTY_PRINT));
+
 		passthru("cd .temp && zip -qr ../" . basename($filename['zip']) . " ./ && cd .. && rm -rf .temp/");
 		rename(basename($filename['zip']), $targetLocation . $filename['zip']);
 
