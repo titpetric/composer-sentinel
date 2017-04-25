@@ -93,7 +93,6 @@ class ComposerSentinel
 			$options = array("name", "description", "keywords", "authors", "license", "type", "require", "autoload");
 
 			$package = (array)$composer;
-			unset($package['repositories']);
 			$package['time'] = date("Y-m-d H:i:s");
 			$package['version'] = $this->generateVersion($package);
 
