@@ -149,7 +149,12 @@ class ComposerSentinel
 	{
 		$version = "1.0";
 		if (isset($package['version'])) {
-			$version = $package['version'];
+			$version = explode(".", $package['version']);
+			if (count($version) >= 2) {
+				$version = implode(".", array_slice($version, 0, 2));
+			} else {
+				$version = "1.0";
+			}
 		}
 		return $version . "." . date("ymd.Hi");
 	}
